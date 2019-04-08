@@ -2,7 +2,7 @@ var svg = d3.select("svg"),
     width = +svg.attr("width"),
     height = +svg.attr("height");
     
-var radius = 15; 
+var radius = 20; 
 
 var nodes_data =  [
     {"name": "Lillian", "sex": "F"},
@@ -11,7 +11,7 @@ var nodes_data =  [
     {"name": "Mary", "sex": "F"},
     {"name": "Helen", "sex": "F"},
     {"name": "Jamie", "sex": "M"},
-    {"name": "Jessie", "sex": "F"},
+    {"name": "Jessie", "sex": "F", "isMaster" : true},
     {"name": "Ashton", "sex": "M"},
     {"name": "Duncan", "sex": "M"},
     {"name": "Evette", "sex": "F"},
@@ -87,16 +87,20 @@ var simulation = d3.forceSimulation()
 					.nodes(nodes_data);
                               
 var link_force =  d3.forceLink(links_data)
-                        .id(function(d) { return d.name; });            
+                        .id(function(d) { return d.name; });
+                        // .strength(0.025);
+                        // .distance(300);            
          
 var charge_force = d3.forceManyBody()
-    .strength(-100); 
+        .strength(-200); 
     
 var center_force = d3.forceCenter(width / 2, height / 2);  
                       
 simulation
     .force("charge_force", charge_force)
     .force("center_force", center_force)
+    // add some collision detection so they don't overlap
+    .force("collide", d3.forceCollide().radius(50))
     .force("links",link_force)
  ;
 
@@ -104,29 +108,50 @@ simulation
 //add tick instructions: 
 simulation.on("tick", tickActions );
 
+
 //add encompassing group for the zoom 
 var g = svg.append("g")
     .attr("class", "everything");
 
 //draw lines for the links 
 var link = g.append("g")
-      .attr("class", "links")
+    .attr("class", "links")
     .selectAll("line")
     .data(links_data)
     .enter().append("line")
-      .attr("stroke-width", 2)
-      .style("stroke", linkColour);        
+      .attr("stroke-width", 1)
+      .style("stroke", linkColour);     
+// var link = svg.selectAll(".link")
+//         .data(links_data)
+//         .enter()
+//         .append("path")
+//         .attr("class", "link")
+//         .attr('stroke', linkColour);   
 
 //draw circles for the nodes 
 var node = g.append("g")
         .attr("class", "nodes") 
-        .selectAll("circle")
+        .selectAll("g")
         .data(nodes_data)
-        .enter()
-        .append("circle")
-        .attr("r", radius)
-        .attr("fill", circleColour);
+        .enter().append("g")
+
+var circles = node.append("circle")
+    .attr("r", isMaster)
+    .attr("fill", circleColour)
+    // .on("click", clicknode(.2))
+    .on("mouseover", mouseOver(.2))
+    .on("mouseout", mouseOut)
+    .call(d3.drag()
+        .on("start", drag_start)
+        .on("drag", drag_drag)
+        .on("end", drag_end));
  
+ var lables = node.append("text")
+      .text(function(d) {
+        return d.name;
+      })
+      .attr('x', -15)
+      .attr('y', 0);
  
 //add drag capabilities  
 var drag_handler = d3.drag()
@@ -148,10 +173,67 @@ zoom_handler(svg);
 //Function to choose what color circle we have
 //Let's return blue for males and red for females
 function circleColour(d){
-	if(d.sex =="M"){
-		return "blue";
+	if(d.isMaster){
+		return "#DCEDC8";
+	} else if(d.sex =="M"){
+    return "#D1C4E9";
+  }
+    else {
+		return "#B2EBF2";
+	}
+}
+
+// build a dictionary of nodes that are linked
+var linkedByIndex = {};
+links_data.forEach(function(d) {
+    linkedByIndex[d.source.index + "," + d.target.index] = 1;
+});
+
+// check the dictionary to see if nodes are linked
+function isConnected(a, b) {
+    return linkedByIndex[a.index + "," + b.index] || linkedByIndex[b.index + "," + a.index] || a.index == b.index;
+}
+
+function mouseOver(opacity){
+  console.log("clicked")
+  return function(d) {
+    // check all other nodes to see if they're connected
+    // to this one. if so, keep the opacity at 1, otherwise
+    // fade
+    node.style("stroke-opacity", function(o) {
+        thisOpacity = isConnected(d, o) ? 1 : opacity;
+        return thisOpacity;
+    });
+    node.style("fill-opacity", function(o) {
+        thisOpacity = isConnected(d, o) ? 1 : opacity;
+        return thisOpacity;
+    });
+    // also style link accordingly
+    link.style("stroke-opacity", function(o) {
+        debugger;
+        return o.source === d || o.target === d ? 1 : opacity;
+    });
+    // link.style("stroke", function(o){
+    //     return o.source === d || o.target === d ? o.source.colour : "black";
+    // });
+};
+}
+
+function mouseOut() {
+  node.style("stroke-opacity", 1);
+  node.style("fill-opacity", 1);
+  link.style("stroke-opacity", 1);
+  // link.style("stroke", "black");
+}
+
+
+//Function to choose what color circle we have
+//Let's return blue for males and red for females
+function isMaster(d){
+	if(d.isMaster){
+		return 35;
 	} else {
-		return "pink";
+		return 20;
 	}
 }
 
@@ -160,9 +242,9 @@ function circleColour(d){
 //If the link type is "E" return red 
 function linkColour(d){
 	if(d.type == "A"){
-		return "green";
+		return "#00BCD4";
 	} else {
-		return "red";
+		return "black";
 	}
 }
 
@@ -193,9 +275,13 @@ function zoom_actions(){
 
 function tickActions() {
     //update circle positions each tick of the simulation 
-       node
-        .attr("cx", function(d) { return d.x; })
-        .attr("cy", function(d) { return d.y; });
+    //    node
+    //     .attr("cx", function(d) { return d.x; })
+    //     .attr("cy", function(d) { return d.y; });
+    node
+        .attr("transform", function(d) {
+          return "translate(" + d.x + "," + d.y + ")";
+        })
         
     //update link positions 
     link
@@ -203,4 +289,25 @@ function tickActions() {
         .attr("y1", function(d) { return d.source.y; })
         .attr("x2", function(d) { return d.target.x; })
         .attr("y2", function(d) { return d.target.y; });
+    // link.attr("d", positionLink);
 } 
+
+// through the intermediate nodes
+// function positionLink(d) {
+//   var offset = 30;
+
+//   var midpoint_x = (d.source.x + d.target.x) / 2;
+//   var midpoint_y = (d.source.y + d.target.y) / 2;
+
+//   var dx = (d.target.x - d.source.x);
+//   var dy = (d.target.y - d.source.y);
+
+//   var normalise = Math.sqrt((dx * dx) + (dy * dy));
+
+//   var offSetX = midpoint_x + offset*(dy/normalise);
+//   var offSetY = midpoint_y - offset*(dx/normalise);
+
+//   return "M" + d.source.x + "," + d.source.y +
+//       "S" + offSetX + "," + offSetY +
+//       " " + d.target.x + "," + d.target.y;
+// }
