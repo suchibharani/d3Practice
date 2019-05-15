@@ -109,13 +109,19 @@ var circles = node.append("circle")
         .on("start", drag_start)
         .on("drag", drag_drag)
         .on("end", drag_end));
+var imgNode = node.append("image")
+      .attr("xlink:href", "https://github.com/favicon.ico")
+      .attr("x", -8)
+      .attr("y", -8)
+      .attr("width", 16)
+      .attr("height", 16);
  
  var lables = node.append("text")
       .text(function(d) {
         return d.name;
       })
-      .attr('x', -15)
-      .attr('y', 0);
+      .attr('x', 15)
+      .attr('y', 5);
  
 //add drag capabilities  
 var drag_handler = d3.drag()
