@@ -11,7 +11,7 @@ var nodes_data =  [
     {"name": "Mary", "sex": "F"},
     {"name": "Helen", "sex": "F"},
     {"name": "Jamie", "sex": "M"},
-    {"name": "Jessie", "sex": "F", "isMaster" : true},
+    {"name": "Collin", "sex": "F", "isSource" : true},
     {"name": "Ashton", "sex": "M"},
     {"name": "Duncan", "sex": "M"},
     {"name": "Evette", "sex": "F"},
@@ -27,7 +27,7 @@ var nodes_data =  [
     {"name": "Yvette", "sex": "F"},
     {"name": "Maria", "sex": "F"},
     {"name": "Lexy", "sex": "F"},
-    {"name": "Peter", "sex": "M"},
+    {"name": "Tim cook", "sex": "M","isDestina" : true},
     {"name": "Ashley", "sex": "F"},
     {"name": "Finkler", "sex": "M"},
     {"name": "Damo", "sex": "M"},
@@ -41,13 +41,13 @@ var links_data = [
     {"source": "Sylvester", "target": "Lillian", "type":"A" },
     {"source": "Sylvester", "target": "Mary", "type":"A"},
     {"source": "Sylvester", "target": "Jamie", "type":"A"},
-    {"source": "Sylvester", "target": "Jessie", "type":"A"},
+    {"source": "Sylvester", "target": "Collin", "type":"A"},
     {"source": "Sylvester", "target": "Helen", "type":"A"},
     {"source": "Helen", "target": "Gordon", "type":"A"},
     {"source": "Mary", "target": "Lillian", "type":"A"},
     {"source": "Ashton", "target": "Mary", "type":"A"},
     {"source": "Duncan", "target": "Jamie", "type":"A"},
-    {"source": "Gordon", "target": "Jessie", "type":"A"},
+    {"source": "Gordon", "target": "Collin", "type":"A"},
     {"source": "Sylvester", "target": "Fray", "type":"E"},
     {"source": "Fray", "target": "Mauer", "type":"A"},
     {"source": "Fray", "target": "Cynthia", "type":"A"},
@@ -61,7 +61,7 @@ var links_data = [
     {"source": "Evette", "target": "Sylvester", "type":"E"},
     {"source": "Cynthia", "target": "Sylvester", "type":"E"},
     {"source": "Cynthia", "target": "Jamie", "type":"E"},
-    {"source": "Mauer", "target": "Jessie", "type":"E"},
+    {"source": "Mauer", "target": "Collin", "type":"E"},
     {"source": "Duke", "target": "Lexy", "type":"A"},
     {"source": "Feyton", "target": "Lexy", "type":"A"},
     {"source": "Maria", "target": "Feyton", "type":"A"},
@@ -75,7 +75,7 @@ var links_data = [
     {"source": "Maria", "target": "Feyton", "type":"A"},
     {"source": "Finkler", "target": "Ashley", "type":"E"},
     {"source": "Sylvester", "target": "Maria", "type":"E"},
-    {"source": "Peter", "target": "Finkler", "type":"E"},
+    {"source": "Tim cook", "target": "Finkler", "type":"E"},
     {"source": "Ashley", "target": "Gordon", "type":"E"},
     {"source": "Maria", "target": "Imogen", "type":"E"}
     
@@ -120,6 +120,7 @@ var link = g.append("g")
     .data(links_data)
     .enter().append("line")
       .attr("stroke-width", 1)
+      .attr("stroke-dasharray",1)
       .style("stroke", linkColour);     
 // var link = svg.selectAll(".link")
 //         .data(links_data)
@@ -173,7 +174,7 @@ zoom_handler(svg);
 //Function to choose what color circle we have
 //Let's return blue for males and red for females
 function circleColour(d){
-	if(d.isMaster){
+	if(d.isSource){
 		return "#DCEDC8";
 	} else if(d.sex =="M"){
     return "#D1C4E9";
@@ -210,7 +211,6 @@ function mouseOver(opacity){
     });
     // also style link accordingly
     link.style("stroke-opacity", function(o) {
-        debugger;
         return o.source === d || o.target === d ? 1 : opacity;
     });
     // link.style("stroke", function(o){
@@ -230,7 +230,7 @@ function mouseOut() {
 //Function to choose what color circle we have
 //Let's return blue for males and red for females
 function isMaster(d){
-	if(d.isMaster){
+	if(d.isSource){
 		return 35;
 	} else {
 		return 20;
