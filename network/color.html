@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="en">
+	<head>
+		<meta charset="utf-8">
+		<title>Color D3 JS</title>
+		<link rel="stylesheet" type="text/css" href="style.css" >
+		<script src="https://cdnjs.cloudflare.com/ajax/libs/d3/5.7.0/d3.min.js"></script>
+        <script>
+            window.onload = function() {
+            debugger;
+                    const categorical = [{
+                        "name": "interpolateViridis"  },
+                    { "name": "interpolateInferno"  },
+                    { "name": "interpolateMagma"    },
+                    { "name": "interpolatePlasma"   },
+                    { "name": "interpolateWarm"     },
+                    { "name": "interpolateCool"     },
+                    { "name": "interpolateCubehelixDefault"  },
+                    { "name": "interpolateRainbow"  },
+                    { "name": "interpolateSinebow"  }
+                    ]
+
+                    const width = 600,
+                    height = 80;
+
+                    const svg = d3.select("body")
+                    .append("svg")
+                    .attr("width", width)
+                    .attr("height", height)
+                    .append("g")
+
+                    console.log(d3.scaleSequential(d3[categorical[8].name]))
+                    const unit = (s) => width / s.n;
+                    const state = {
+                    n: 12,
+                    colorScale: d3.scaleSequential(d3[categorical[8].name])
+                    };
+                    console.log(state)
+                    const update = () => {
+
+                    bars.data(d3.range(0, 1, 1 / state.n))
+                        .enter().append("rect")
+                        .attr("class", "bars")
+                        .attr("y", 0)
+                        .attr("height", height)
+                        .attr("width", unit(state))
+                        .attr("x", (d, i) => i * unit(state))
+                        .style("fill", state.colorScale)
+                        .merge(bars);
+                        
+                    bars.exit().remove();
+
+                    }
+
+                    const bars = svg.selectAll(".bars");
+
+                    update()
+
+                    const sequentialButtons = d3.select(".categoricalButtons")
+                    .selectAll("button")
+                    .data(categorical)
+                    .enter().append("button")
+                    .text(d => d.name)
+                    .on("click",  (buttonValue) =>{ 
+                        state.colorScale = d3.scaleSequential(d3[buttonValue.name]);
+                        update();
+                        });
+
+                    const itemsInput = d3.select('#items')
+                    .on('change',(d,i,arr)=>{
+                        state.n = arr[i].value;
+                        update();
+                        });
+            }
+        </script>
+	</head>
+
+	<body>
+		<div class="categoricalButtons">Color Scales: </div>
+        <div><input id="items" type="number" value="12"></div>
+
+  </body>
+
+</html>
