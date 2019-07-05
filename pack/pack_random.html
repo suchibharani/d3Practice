@@ -1,0 +1,214 @@
+<html>
+<head>
+    <title>Circular bounds</title>
+<script src="../d3.v4.js" charset="utf-8"></script>
+<style>
+    body{
+        background: #303A7E;
+        background: radial-gradient(farthest-side at 50% -75%,#553254,#553254,#171C3E);
+        background-repeat: no-repeat;
+    }
+    .pool {
+    fill: rgba(82, 158, 182, 0.2);
+    stroke: #529eb6;
+    stroke-width: 2px !important;
+    
+}
+#vis {
+    width: 735px;
+    margin: 0 auto;
+    padding: 5% 0 0;
+}
+</style>
+</head>
+<body>
+
+<div id="vis"></div>
+<script>
+    let people = [
+        { value: "Food lovers", color: '#18995E' },
+        { value: "Pasta lovers", color: '#094DC7' },
+        { value: "Pizza lovers", color: '#8C0F54' },
+    ];
+    // let catagories = [
+    //     { value: "me", color: '#529EB6' },
+    //     { value: "company", color: '#094DC7' },
+    //     { value: "type1", color: '#18995E' },
+    //     { value: "type2", color: '#8C0F54' },
+    // ];
+    let catagories = {
+        "me" : '#529EB6' ,
+        "type1" : '#094DC7' ,
+        "type2" : '#18995E' ,
+        "company" : '#8C0F54' 
+    };
+    console.warn(catagories);
+    let data = [
+        {id: 0, "Name":"Collin","Count":4319, type:"me",radius:55},
+        {id: 1,"Name":"Jack","Count":4159, type:"type1",radius:30},
+        {id: 2,"Name":"Arindham","Count":2583, type:"type1",radius:23},
+        {id: 3,"Name":"Joy","Count":2074, type:"type2",radius:20},
+        {id: 4,"Name":"JJ","Count":1894, type:"type1",radius:25},
+        {id: 5,"Name":"Tony","Count":700, type:"type1",radius:22},
+        {id: 6,"Name":"Bharani","Count":1713, type:"type1",radius:19},
+        {id: 7,"Name":"Aru","Count":1636, type:"type2",radius:23},
+        {id: 8,"Name":"sylvia","Count":1566, type:"company",radius:17},
+        {id: 9,"Name":"Adam","Count":3000, type:"type1",radius:25},
+        {id: 10,"Name":"Rachel","Count":1344, type:"company",radius:22},
+        {id: 11,"Name":"Monica","Count":1900, type:"type1",radius:19},
+        {id: 12,"Name":"Ross","Count":1200, type:"type1",radius:45},
+        {id: 13,"Name":"Julie","Count":1700, type:"company",radius:34},
+        {id: 14,"Name":"Lily","Count":1000, type:"company",radius:34},
+        {id: 15,"Name":"Adi","Count":1331, type:"type2",radius:35},
+        {id: 16,"Name":"Sam","Count":900, type:"company",radius:29},
+        {id: 17,"Name":"Fahath","Count":1306, type:"company",radius:33},
+        {id: 18,"Name":"Vijay","Count":800, type:"type1",radius:27},
+        {id: 19,"Name":"Ram","Count":1273, type:"type2",radius:19},
+        {id: 20,"Name":"Steffi","Count":600, type:"company",radius:25}
+    ]
+    // let data = d3.range(60).map((d, idx) => ({
+    //     id: idx,
+    //     type: people[Math.floor(Math.random() * 3)],
+    //     radius: ~~d3.randomUniform(5, 30)(),
+    //     }));
+        var margin = 30,
+        width = 735 - margin * 2,
+        height = width,
+        radius = width / 2,
+        strokeWidth = 4,
+        hyp2 = Math.pow(radius, 2),
+        nodeBaseRad = 5;
+    // let width = 1000,height = 500,
+    // radius = height / 2,
+    // strokeWidth = 4,
+    // hyp2 = Math.pow(radius, 2),
+    // nodeBaseRad = 5;
+
+    
+    let chart = function(){
+    // const svg = d3.select(DOM.svg(width, height));
+    let svg = d3.select("#vis")
+                .append('svg')
+                .attr('width', width + margin * 2)
+                .attr('height', height + margin * 2)
+                .attr("class", "bubbleChart");
+    
+    const nodeGroup = svg.append("g").attr('id', 'nodes').attr('transform', 'translate(' + margin + ',' + margin + ')');;
+    var pool = nodeGroup.append('circle')
+        .style('stroke-width', strokeWidth * 2)
+        .attr("r", radius )
+        .attr("class", 'pool' )
+        .attr("cy",0)
+        .attr("cx",0)
+        .attr("transform",'translate(' + width / 2 + ',' + height / 2 + ')');      
+    let simulation = d3.forceSimulation();
+        
+    simulation = simulation
+        .force("collide", d3.forceCollide(d => d.radius + 15).iterations(12))
+        .force("charge", d3.forceManyBody())
+        .velocityDecay(0.5)
+        .alphaDecay(0.006)
+        .force("center", d3.forceCenter(width / 2, height / 2))
+        .force("gravity", d3.forceManyBody(30))
+        .force("y", d3.forceY(0))
+        .force("x", d3.forceX(0))
+    function pythag(r, b, coord) {
+        r += nodeBaseRad;
+        // force use of b coord that exists in circle to avoid sqrt(x<0)
+        b = Math.min(width - r - strokeWidth, Math.max(r + strokeWidth, b));
+
+        var b2 = Math.pow((b - radius), 2),
+            a = Math.sqrt(hyp2 - b2);
+
+        // radius - sqrt(hyp^2 - b^2) < coord < sqrt(hyp^2 - b^2) + radius
+        coord = Math.max(radius - a + r + strokeWidth,
+                    Math.min(a + radius - r - strokeWidth, coord));
+
+        return coord;
+    }
+    const ticked = () => {
+        nodeGroup.selectAll(".nodes")
+        .attr("cx", function (d) { 
+            // console.log(d)
+            if(d.id === 0){
+                d.x = width / 2;
+                d.y = height / 2;
+            }
+            return d.x = pythag(d.radius, d.y, d.x); 
+            })
+        .attr("cy",  function (d) { 
+            if(d.id === 0){
+                d.x = width / 2;
+                d.y = height / 2;
+            }
+            return d.y = pythag(d.radius, d.x, d.y); 
+            });
+    }
+
+    simulation
+        .nodes(data)
+        .on("tick", ticked);
+  
+    function draw() {
+        const node = nodeGroup.selectAll(".nodes")
+        .data(simulation.nodes(), d => d.id)
+        .enter().append("circle")
+        .attr("class", "nodes")
+        .attr("r", d => d.radius + nodeBaseRad)
+        .attr('fill', d => catagories[d.type])
+        .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+        
+        node.attr("r", d => d.radius)
+        .attr('fill', d => catagories[d.type])
+        .call(d3.drag()
+                .on("start", dragstarted)
+                .on("drag", dragged)
+                .on("end", dragended));
+    }
+  
+    draw();
+  
+    function randomize() {}
+    
+    function split() {
+        simulation
+        .force("left", isolate(d3.forceX(width / 4).strength(0.3), d => d.type.value === 'Pizza lovers'))
+        .force("center", isolate(d3.forceX(width / 2).strength(0.3), d => d.type.value === 'Food lovers'))
+        .force("right", isolate(d3.forceX(width / 1.3).strength(0.3), d => d.type.value === 'Pasta lovers'))
+        .force("x", null)
+        .force("y", d3.forceY(height / 2).strength(0.3))
+    }
+  
+    function isolate(force, filter) {
+        let initialize = force.initialize;
+        force.initialize = function() { initialize.call(force, data.filter(filter)); };
+        return force;
+    }
+  
+    function dragstarted(d) {
+        if (!d3.event.active) simulation.alphaTarget(1).restart();
+        d.fx = d.x;
+        d.fy = d.y;
+    }
+
+    function dragged(d) {
+        d.fx = d3.event.x;
+        d.fy = d3.event.y;
+    }
+
+    function dragended(d) {
+        if (!d3.event.active) simulation.alphaTarget(0);
+        d.fx = null;
+        d.fy = null;
+    }
+
+    return Object.assign(svg.node(), { split, randomize });
+}
+chart();
+</script>
+    
+</body>
+</html>

@@ -1,0 +1,267 @@
+<html>
+<head>
+    <title>Circular bounds</title>
+<script src="../d3.v4.js" charset="utf-8"></script>
+<style>
+body{
+    background: #303A7E;
+    background: radial-gradient(farthest-side at 50% -20%,#553254,#553254,#171C3E);
+    background-repeat: no-repeat;
+}
+#chart {
+    width: 800px;
+    margin: 0 auto;
+    height: 800px;
+}
+
+.pool {
+    fill: rgba(82, 158, 182, 0.39);
+    stroke: #529eb6;
+    stroke-width: 2px !important;
+    
+}
+</style>
+</head>
+<body>
+<div id="chart">
+
+        <div id="vis"></div>
+</div>
+
+<script>
+    let data = [
+        {"Name":"Collin","Count":4319},
+        {"Name":"Jack","Count":4159},
+        {"Name":"Arindham","Count":2583},
+        {"Name":"Joy","Count":2074},
+        {"Name":"JJ","Count":1894},
+        {"Name":"Tony","Count":700},
+        {"Name":"Bharani","Count":1713},
+        {"Name":"Aru","Count":1636},
+        {"Name":"sylvia","Count":1566},
+        {"Name":"Adam","Count":3000},
+        {"Name":"Rachel","Count":1344},
+        {"Name":"Monica","Count":1900},
+        {"Name":"Ross","Count":1200},
+        {"Name":"Julie","Count":1700},
+        {"Name":"Lily","Count":1000},
+        {"Name":"Adi","Count":1331},
+        {"Name":"Sam","Count":900},
+        {"Name":"Fahath","Count":1306},
+        {"Name":"Vijay","Count":800},
+        {"Name":"Ram","Count":1273},
+        {"Name":"Steffi","Count":600}
+    ]
+    let width = document.querySelector('#chart').clientWidth;
+    let height = document.documentElement.clientHeight * 0.8;
+    let svg = d3.select("#vis")
+                .append('svg')
+                .attr('width', width)
+                .attr('height', height)
+                .attr("class", "bubbleChart");
+    let centerX = width * 0.5;
+    let centerY = height * 0.5;
+    let strength = 0.05;
+    let focusedNode;
+    let format = d3.format(',d');
+    let scaleColor = d3.scaleLinear().domain([1,data.length])
+    .range(["#F8DADA", "#AC98D3"]);
+    let pack = d3.pack()
+			.size([(width*0.6), height ])
+            .padding(1.5);
+    let forceCollide = d3.forceCollide(d => d.r + 0.1);
+    let simulation = d3.forceSimulation()
+            // this one to create links between nodes
+			// .force('link', d3.forceLink().id(d => d.id))
+			.force('charge', d3.forceManyBody())
+			.force('collide', forceCollide)
+			// .force('center', d3.forceCenter(centerX, centerY))
+			.force('x', d3.forceX(centerX ).strength(strength))
+            .force('y', d3.forceY(centerY ).strength(strength));
+    // reduce number of circles on mobile screen due to slow computation
+    if ('matchMedia' in window && window.matchMedia('(max-device-width: 767px)').matches) {
+        data = data.filter(el => {
+            return el.Count >= 50;
+        });
+    }
+    
+    let root = d3.hierarchy({ children: data })
+            .sum(d => d.Count/0.5);
+    // pack() to automatically calculate radius conveniently only
+    // and get only the leaves
+    let nodes = pack(root).leaves().map(node => {
+        const data = node.data;
+        let initials = data.Name.substring(0, 2).toUpperCase()
+        return {
+            x: centerX + (node.x - centerX) * 3, // magnify start position to have transition to center movement
+            y: centerY + (node.y - centerY) * 3,
+            r: 0, // for tweening
+            radius: node.r, //original radius
+            // id: data.cat + '.' + (data.name.replace(/\s/g, '-')),
+            id : data.Name,
+            name: data.Name,
+            initials : initials,
+            value: data.Count,
+        }
+    });
+    simulation.nodes(nodes).on('tick', ticked);
+    // svg background
+    // svg.style('background-color', '#fefefe');
+    let node = svg.selectAll('.node')
+			.data(nodes)
+			.enter().append('g')
+			.attr('class', 'node')
+			.call(d3.drag()
+				.on('start', (d) => {
+					if (!d3.event.active) simulation.alphaTarget(0.2).restart();
+					d.fx = d.x;
+					d.fy = d.y;
+				})
+				.on('drag', (d) => {
+					d.fx = d3.event.x;
+					d.fy = d3.event.y;
+				})
+				.on('end', (d) => {
+					if (!d3.event.active) simulation.alphaTarget(0);
+					d.fx = null;
+					d.fy = null;
+                }));
+    node.append('circle')
+    .attr('id', d => d.id)
+    .attr('r', 0)
+    .style('fill', (d,i) => scaleColor(i))
+    .transition().duration(2000).ease(d3.easeElasticOut)
+        .tween('circleIn', (d) => {
+            let i = d3.interpolateNumber(0, d.radius);
+            return (t) => {
+                d.r = i(t);
+                simulation.force('collide', forceCollide);
+            }
+        })
+    node.append('clipPath')
+        .attr('id', d => `clip-${d.id}`)
+        .append('use')
+        .attr('xlink:href', d => `#${d.id}`);
+    // display text as circle icon
+    node.append('text')
+        .classed('node-icon', true)
+        .attr("text-anchor", "middle")
+        .attr("dy", 12)
+        .attr("font-size", "20px")
+        .text(function(d) { return d.name });
+    
+
+    // On hover can see title for the node
+    node.append('title')
+            .text(d => ('Value' + '::' + d.name + '\n' + format(d.value)));
+
+    node.on('click', (currentNode) => {
+        d3.event.stopPropagation();
+        console.warn('currentNode', currentNode);
+        let currentTarget = d3.event.currentTarget; // the <g> el
+        if (currentNode === focusedNode) {
+            // no focusedNode or same focused node is clicked
+            return;
+        }
+        var that = this;
+        const eventObj = {
+            handleEvent() {
+                that.loadNetworkGraph();
+            //   alert(`Hello, there! You clicked on a ${e.target.nodeName}`)
+            }
+          }
+        const btn = currentTarget.getElementsByClassName("myButton")[0];
+        btn.addEventListener('click', eventObj)
+        
+        let lastNode = focusedNode;
+        focusedNode = currentNode;
+        simulation.alphaTarget(0.2).restart();
+        // hide all circle-overlay
+        d3.selectAll('.circle-overlay').classed('hidden', true);
+        d3.selectAll('.node-icon').classed('node-icon--faded', false);
+        // don't fix last node to center anymore
+        if (lastNode) {
+            lastNode.fx = null;
+            lastNode.fy = null;
+            node.filter((d, i) => i === lastNode.index)
+                .transition().duration(2000).ease(d3.easePolyOut)
+                .tween('circleOut', () => {
+                    let irl = d3.interpolateNumber(lastNode.r, lastNode.radius);
+                    return (t) => {
+                        lastNode.r = irl(t);
+                    }
+                })
+                .on('interrupt', () => {
+                    lastNode.r = lastNode.radius;
+                });
+        }
+        // if (!d3.event.active) simulation.alphaTarget(0.5).restart();
+        d3.transition().duration(2000).ease(d3.easePolyOut)
+            .tween('moveIn', () => {
+                console.warn('tweenMoveIn', currentNode);
+                let ix = d3.interpolateNumber(currentNode.x, centerX);
+                let iy = d3.interpolateNumber(currentNode.y, centerY);
+                let ir = d3.interpolateNumber(currentNode.r, centerY * 0.6);
+                return function (t) {
+                    // console.log('i', ix(t), iy(t));
+                    currentNode.fx = ix(t);
+                    currentNode.fy = iy(t);
+                    currentNode.r = ir(t);
+                    simulation.force('collide', forceCollide);
+                };
+            })
+            .on('end', () => {
+                simulation.alphaTarget(0);
+                let $currentGroup = d3.select(currentTarget);
+                $currentGroup.select('.circle-overlay')
+                    .classed('hidden', false);
+                $currentGroup.select('.node-icon')
+                    .classed('node-icon--faded', true);
+            })
+            .on('interrupt', () => {
+                console.warn('move interrupt', currentNode);
+                currentNode.fx = null;
+                currentNode.fy = null;
+                simulation.alphaTarget(0);
+            });
+    });
+    // blur
+    d3.select(document).on('click', () => {
+        let target = d3.event.target;
+        // check if click on document but not on the circle overlay
+        if (!target.closest('#circle-overlay') && focusedNode) {
+            focusedNode.fx = null;
+            focusedNode.fy = null;
+            simulation.alphaTarget(0.2).restart();
+            d3.transition().duration(2000).ease(d3.easePolyOut)
+                .tween('moveOut', function () {
+                    console.warn('tweenMoveOut', focusedNode);
+                    let ir = d3.interpolateNumber(focusedNode.r, focusedNode.radius);
+                    return function (t) {
+                        focusedNode.r = ir(t);
+                        simulation.force('collide', forceCollide);
+                    };
+                })
+                .on('end', () => {
+                    focusedNode = null;
+                    simulation.alphaTarget(0);
+                })
+                .on('interrupt', () => {
+                    simulation.alphaTarget(0);
+                });
+            // hide all circle-overlay
+            d3.selectAll('.circle-overlay').classed('hidden', true);
+            d3.selectAll('.node-icon').classed('node-icon--faded', false);
+        }
+    });
+    function ticked() {
+        node
+            .attr('transform', d => `translate(${d.x},${d.y})`)
+            .select('circle')
+                .attr('r', d => d.r);
+    }
+
+</script>
+    
+</body>
+</html>
