@@ -19,6 +19,10 @@
     margin: 0 auto;
     padding: 5% 0 0;
 }
+text.node-icon {
+    opacity: 0;
+}
+
 </style>
 </head>
 <body>
@@ -42,7 +46,7 @@
         "type2" : '#18995E' ,
         "company" : '#8C0F54' 
     };
-    console.warn(catagories);
+    let nodes;
     let data = [
         {id: 0, "Name":"Collin","Count":4319, type:"me",radius:55},
         {id: 1,"Name":"Jack","Count":4159, type:"type1",radius:30},
@@ -127,48 +131,71 @@
         return coord;
     }
     const ticked = () => {
-        nodeGroup.selectAll(".nodes")
-        .attr("cx", function (d) { 
-            // console.log(d)
-            if(d.id === 0){
-                d.x = width / 2;
-                d.y = height / 2;
-            }
-            return d.x = pythag(d.radius, d.y, d.x); 
-            })
-        .attr("cy",  function (d) { 
-            if(d.id === 0){
-                d.x = width / 2;
-                d.y = height / 2;
-            }
-            return d.y = pythag(d.radius, d.x, d.y); 
-            });
+        // nodeGroup.selectAll(".groups")
+        // .attr("cx", function (d) { 
+        //     // console.log(d)
+        //     if(d.id === 0){
+        //         d.x = width / 2;
+        //         d.y = height / 2;
+        //     }
+        //     return d.x = pythag(d.radius, d.y, d.x); 
+        //     })
+        // .attr("cy",  function (d) { 
+        //     if(d.id === 0){
+        //         d.x = width / 2;
+        //         d.y = height / 2;
+        //     }
+        //     return d.y = pythag(d.radius, d.x, d.y); 
+        //     });
+        nodes
+                .attr('transform',  function(d){
+                    if(d.id === 0){
+                        d.x = width / 2;
+                        d.y = height / 2;
+                    }else{
+                        d.x = pythag(d.radius, d.y, d.x); 
+                        d.y = pythag(d.radius, d.x, d.y); 
+                    }
+                    return `translate(${d.x},${d.y})`
+                }
+                )
+                // .select('circle')
+                //     .attr('r', d => d.radius);
     }
 
     simulation
         .nodes(data)
         .on("tick", ticked);
-  
+    
     function draw() {
-        const node = nodeGroup.selectAll(".nodes")
+        nodes = nodeGroup.selectAll(".groups")
         .data(simulation.nodes(), d => d.id)
-        .enter().append("circle")
-        .attr("class", "nodes")
-        .attr("r", d => d.radius + nodeBaseRad)
-        .attr('fill', d => catagories[d.type])
+        .enter().append("g")
+        .attr("class", "groups")
         .on("mouseover", mouseover)
         .on("mouseout", mouseout)
-        .call(d3.drag()
-                .on("start", dragstarted)
-                .on("drag", dragged)
-                .on("end", dragended));
+
+        nodes.append("circle")
+        .attr("class", "nodes")
+        .attr('id', d => d.id)
+        .attr("r", function (d) { return d.radius; })
+        .attr('fill', d => catagories[d.type])
         
-        node.attr("r", d => d.radius)
+        nodes.attr("r", d => d.radius)
         .attr('fill', d => catagories[d.type])
         .call(d3.drag()
                 .on("start", dragstarted)
                 .on("drag", dragged)
                 .on("end", dragended));
+       
+        // display text as circle icon
+        nodes.append('text')
+            .classed('node-icon', true)
+            .attr("text-anchor", "middle")
+            .attr("dy", 12)
+            .attr("fill", "white")
+            .attr("font-size", "20px")
+            .text(function(d) { return d.Name });
     }
   
     draw();
@@ -207,14 +234,35 @@
         d.fy = null;
     }
     function mouseover(d) {
-        d3.select(this).transition()
+        d3.selectAll('text').classed('show', false);
+        d3.selectAll('text').classed('node-icon', true);
+        d3.select(this).select("circle").transition()
             .duration(750)
             .attr("r", d.radius+20);
+        d3.transition().duration(750).ease(d3.easePolyOut)
+        .on('end', () => {
+            simulation.alphaTarget(0);
+            let $currentGroup = d3.select(this);
+            $currentGroup.select("text")
+                .classed('node-icon', false)
+                .classed('show', true);
+        })
     }
     function mouseout(d) {
-        d3.select(this).transition()
+        d3.select(this).select("circle").transition()
             .duration(750)
             .attr("r", d.radius);
+        d3.transition().duration(100).ease(d3.easePolyOut)
+            .on('end', () => {
+                simulation.alphaTarget(0);
+                let $currentGroup = d3.select(this);
+                $currentGroup.select("text")
+                    .classed('node-icon', true)
+                    .classed('show', false);
+            })
+ 
+        d3.selectAll('text').classed('show', false);
+        d3.selectAll('text').classed('node-icon', true);
     }
     return Object.assign(svg.node(), { split, randomize });
 }
