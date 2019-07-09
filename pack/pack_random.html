@@ -156,6 +156,8 @@
         .attr("class", "nodes")
         .attr("r", d => d.radius + nodeBaseRad)
         .attr('fill', d => catagories[d.type])
+        .on("mouseover", mouseover)
+        .on("mouseout", mouseout)
         .call(d3.drag()
                 .on("start", dragstarted)
                 .on("drag", dragged)
@@ -204,7 +206,16 @@
         d.fx = null;
         d.fy = null;
     }
-
+    function mouseover(d) {
+        d3.select(this).transition()
+            .duration(750)
+            .attr("r", d.radius+20);
+    }
+    function mouseout(d) {
+        d3.select(this).transition()
+            .duration(750)
+            .attr("r", d.radius);
+    }
     return Object.assign(svg.node(), { split, randomize });
 }
 chart();
