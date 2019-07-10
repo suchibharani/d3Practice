@@ -196,6 +196,11 @@ text.node-icon {
             .attr("fill", "white")
             .attr("font-size", "20px")
             .text(function(d) { return d.Name });
+
+        // node click action
+        nodes.on('click', (currentNode) => {
+            console.warn(currentNode)
+        });
     }
   
     draw();
