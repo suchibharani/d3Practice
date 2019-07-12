@@ -22,6 +22,24 @@
 text.node-icon {
     opacity: 0;
 }
+.circle-overlay {
+    font-size: 16px;
+    border-radius: 50%;
+    position: absolute;
+    overflow: hidden;
+    /*it's buggy with the foreignObject background right now*/
+    /*background-color: rgba(255,255,255,0.5);*/
+  }
+  .circle-overlay__inner {
+    text-align: center;
+    width: 100%;
+    padding: 20px 0;
+    height: 100%;
+    color: white;
+  }
+  .hidden {
+    display: none !important;
+  }
 
 </style>
 </head>
@@ -82,6 +100,10 @@ text.node-icon {
         strokeWidth = 4,
         hyp2 = Math.pow(radius, 2),
         nodeBaseRad = 5;
+        let focusedNode;
+        let centerX = width * 0.5;
+        let centerY = height * 0.2;
+        let forceCollide = d3.forceCollide(d => d.r + 20);
     // let width = 1000,height = 500,
     // radius = height / 2,
     // strokeWidth = 4,
@@ -159,8 +181,8 @@ text.node-icon {
                     return `translate(${d.x},${d.y})`
                 }
                 )
-                // .select('circle')
-                //     .attr('r', d => d.radius);
+                .select('circle')
+                    .attr('r', d => d.r);
     }
 
     simulation
@@ -172,21 +194,21 @@ text.node-icon {
         .data(simulation.nodes(), d => d.id)
         .enter().append("g")
         .attr("class", "groups")
-        .on("mouseover", mouseover)
-        .on("mouseout", mouseout)
+        // .on("mouseover", mouseover)
+        // .on("mouseout", mouseout)
 
         nodes.append("circle")
         .attr("class", "nodes")
         .attr('id', d => d.id)
-        .attr("r", function (d) { return d.radius; })
+        .attr("r", function (d) { d.r = d.radius; return d.radius; })
         .attr('fill', d => catagories[d.type])
         
         nodes.attr("r", d => d.radius)
         .attr('fill', d => catagories[d.type])
-        .call(d3.drag()
-                .on("start", dragstarted)
-                .on("drag", dragged)
-                .on("end", dragended));
+        // .call(d3.drag()
+        //         .on("start", dragstarted)
+        //         .on("drag", dragged)
+        //         .on("end", dragended));
        
         // display text as circle icon
         nodes.append('text')
@@ -196,11 +218,116 @@ text.node-icon {
             .attr("fill", "white")
             .attr("font-size", "20px")
             .text(function(d) { return d.Name });
-
+        // toolip for selected node
+        let infoBox = nodes.append('foreignObject')
+                    .classed('circle-overlay hidden', true)
+                    .attr('x', -350 * 0.5 * 0.8)
+                    .attr('y', -350 * 0.5 * 0.8)
+                    .attr('height', 350 * 0.8)
+                    .attr('width', 350 * 0.8)
+                    .append('xhtml:div')
+                    .classed('circle-overlay__inner', true);
+        infoBox.append('h2')
+            .classed('circle-overlay__title', true)
+            .text(d => d.Name);
+        infoBox.append('p')
+            .classed('circle-overlay__body', true)
+            .html(d => "You network worth :"+d.Count);
+        // infoBox.append("button")
+        // .attr("name", "byName")
+        // .attr("type","button")
+        // .attr("class", "button warning myButton")
+        // .attr("font-size", "20px")
         // node click action
         nodes.on('click', (currentNode) => {
-            console.warn(currentNode)
-        });
+            d3.event.stopPropagation();
+            // console.warn('currentNode', currentNode);
+            let currentTarget = d3.event.currentTarget; // the <g> el
+            if (currentNode === focusedNode) {
+                // no focusedNode or same focused node is clicked
+                return;
+            }
+            let lastNode = focusedNode;
+            focusedNode = currentNode;
+            simulation.alphaTarget(0.2).restart();
+            // hide all circle-overlay
+            d3.selectAll('.circle-overlay').classed('hidden', true);
+            if (lastNode) {
+                lastNode.fx = null;
+                lastNode.fy = null;
+                nodes.filter((d, i) => i === lastNode.index)
+                    .transition().duration(2000).ease(d3.easePolyOut)
+                    .tween('circleOut', () => {
+                        console.log("circleOut")
+                        let irl = d3.interpolateNumber(lastNode.r, lastNode.radius);
+                        return (t) => {
+                            lastNode.r = irl(t);
+                        }
+                    })
+                    .on('interrupt', () => {
+                        console.log("interrupt")
+                        lastNode.r = lastNode.radius;
+                    });
+            }
+            // if (!d3.event.active) simulation.alphaTarget(0.5).restart();
+            d3.transition().duration(2000).ease(d3.easePolyOut)
+                .tween('moveIn', () => {
+                    console.warn('tweenMoveIn', currentNode);
+                    let ix = d3.interpolateNumber(currentNode.x, centerX);
+                    let iy = d3.interpolateNumber(currentNode.y, centerY);
+                    let ir = d3.interpolateNumber(currentNode.r, centerX * 0.4);
+                    return function (t) {
+                        // console.log('i', ix(t), iy(t));
+                        debugger;
+                        currentNode.fx = ix(t);
+                        currentNode.fy = iy(t);
+                        currentNode.r = ir(t);
+                        simulation.force('collide', forceCollide);
+                    };
+                })
+                .on('end', () => {
+                    simulation.alphaTarget(0);
+                    let $currentGroup = d3.select(currentTarget);
+                    $currentGroup.select('.circle-overlay')
+                        .classed('hidden', false);
+                    $currentGroup.select('.node-icon')
+                        .classed('node-icon--faded', true);
+                })
+                .on('interrupt', () => {
+                    console.warn('move interrupt', currentNode);
+                    currentNode.fx = null;
+                    currentNode.fy = null;
+                    simulation.alphaTarget(0);
+                });
+            });
+            // blur
+            d3.select(document).on('click', () => {
+                let target = d3.event.target;
+                // check if click on document but not on the circle overlay
+                if (!target.closest('#circle-overlay') && focusedNode) {
+                    focusedNode.fx = null;
+                    focusedNode.fy = null;
+                    simulation.alphaTarget(0.2).restart();
+                    d3.transition().duration(2000).ease(d3.easePolyOut)
+                        .tween('moveOut', function () {
+                            console.warn('tweenMoveOut', focusedNode);
+                            let ir = d3.interpolateNumber(focusedNode.r, focusedNode.radius);
+                            return function (t) {
+                                focusedNode.r = ir(t);
+                                simulation.force('collide', forceCollide);
+                            };
+                        })
+                        .on('end', () => {
+                            focusedNode = null;
+                            simulation.alphaTarget(0);
+                        })
+                        .on('interrupt', () => {
+                            simulation.alphaTarget(0);
+                        });
+                    // hide all circle-overlay
+                    d3.selectAll('.circle-overlay').classed('hidden', true);
+                }
+            });
     }
   
     draw();

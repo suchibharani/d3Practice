@@ -20,6 +20,28 @@ body{
     stroke-width: 2px !important;
     
 }
+#vis {
+    width: 735px;
+    margin: 0 auto;
+    padding: 5% 0 0;
+}
+.circle-overlay {
+    font-size: 16px;
+    border-radius: 50%;
+    position: absolute;
+    overflow: hidden;
+    /*it's buggy with the foreignObject background right now*/
+    /*background-color: rgba(255,255,255,0.5);*/
+  }
+  .circle-overlay__inner {
+    text-align: center;
+    width: 100%;
+    height: 100%;
+    padding: 30px;
+  }
+  .hidden {
+    display: none !important;
+  }
 </style>
 </head>
 <body>
@@ -52,8 +74,10 @@ body{
         {"Name":"Ram","Count":1273},
         {"Name":"Steffi","Count":600}
     ]
-    let width = document.querySelector('#chart').clientWidth;
-    let height = document.documentElement.clientHeight * 0.8;
+    let margin = 30,strokeWidth = 4;
+    let width = document.querySelector('#chart').clientWidth - margin * 2;
+    let height = width;
+    let radius = width * 0.4;
     let svg = d3.select("#vis")
                 .append('svg')
                 .attr('width', width)
@@ -61,6 +85,9 @@ body{
                 .attr("class", "bubbleChart");
     let centerX = width * 0.5;
     let centerY = height * 0.5;
+    
+    hyp2 = Math.pow(radius, 2),
+    nodeBaseRad = 5;
     let strength = 0.05;
     let focusedNode;
     let format = d3.format(',d');
@@ -69,7 +96,15 @@ body{
     let pack = d3.pack()
 			.size([(width*0.6), height ])
             .padding(1.5);
-    let forceCollide = d3.forceCollide(d => d.r + 0.1);
+    let forceCollide = d3.forceCollide(d => d.r );
+    const nodeGroup = svg.append("g").attr('id', 'nodes').attr('transform', 'translate(' + margin + ',' + margin + ')');;
+    var pool = nodeGroup.append('circle')
+        .style('stroke-width', strokeWidth * 2)
+        .attr("r", radius )
+        .attr("class", 'pool' )
+        .attr("cy",0)
+        .attr("cx",0)
+        .attr("transform",'translate(' + width / 2 + ',' + height / 2 + ')');  
     let simulation = d3.forceSimulation()
             // this one to create links between nodes
 			// .force('link', d3.forceLink().id(d => d.id))
@@ -154,7 +189,31 @@ body{
     // On hover can see title for the node
     node.append('title')
             .text(d => ('Value' + '::' + d.name + '\n' + format(d.value)));
-
+    
+    
+    // toolip for selected node
+    let infoBox = node.append('foreignObject')
+                .classed('circle-overlay hidden', true)
+                .attr('x', -350 * 0.5 * 0.8)
+                .attr('y', -350 * 0.5 * 0.8)
+                .attr('height', 350 * 0.8)
+                .attr('width', 350 * 0.8)
+                .append('xhtml:div')
+                .classed('circle-overlay__inner', true);
+    infoBox.append('h2')
+        .classed('circle-overlay__title', true)
+        .text(d => d.name);
+    infoBox.append('p')
+        .classed('circle-overlay__body', true)
+        .html(d => "You network worth :"+d.value);
+    infoBox.append("button")
+    .attr("name", "byName")
+    .attr("type","button")
+    .attr("class", "button warning myButton")
+    .attr("font-size", "20px")
+    // .attr("onClick", "console.warn('jihi')")
+    .text("See connections");
+    console.warn(infoBox)
     node.on('click', (currentNode) => {
         d3.event.stopPropagation();
         console.warn('currentNode', currentNode);
@@ -254,9 +313,34 @@ body{
             d3.selectAll('.node-icon').classed('node-icon--faded', false);
         }
     });
+    function pythag(r, b, coord) {
+        r += nodeBaseRad;
+        // force use of b coord that exists in circle to avoid sqrt(x<0)
+        b = Math.min(width - r - strokeWidth, Math.max(r + strokeWidth, b));
+
+        var b2 = Math.pow((b - radius), 2),
+            a = Math.sqrt(hyp2 - b2);
+
+        // radius - sqrt(hyp^2 - b^2) < coord < sqrt(hyp^2 - b^2) + radius
+        coord = Math.max(radius - a + r + strokeWidth,
+                    Math.min(a + radius - r - strokeWidth, coord));
+
+        return coord;
+    }
     function ticked() {
         node
-            .attr('transform', d => `translate(${d.x},${d.y})`)
+            // .attr('transform', d => `translate(${d.x},${d.y})`)
+            .attr('transform',  function(d){
+                    // if(d.id === 0){
+                    //     d.x = width / 2;
+                    //     d.y = height / 2;
+                    // }else{
+                    //     d.x = pythag(d.r, d.y, d.x); 
+                    //     d.y = pythag(d.r, d.x, d.y); 
+                    // }
+                    return `translate(${d.x},${d.y})`
+                }
+                )
             .select('circle')
                 .attr('r', d => d.r);
     }
