@@ -1,0 +1,68 @@
+<!DOCTYPE html>
+<head>
+  <meta charset="utf-8">
+  <script src="https://d3js.org/d3.v4.min.js"></script>
+  <meta charset="utf-8">
+  <style>
+    body { margin:0;top:0;right:0;bottom:0;left:0; }
+  </style>
+</head>
+
+<body>
+
+<svg width="960" height="960" viewBox="-480 -480 960 960"></svg>
+<script>
+
+const groups = {
+  m: {over:47.7, total:192.4, over_rad:30, totl_rad:185},
+  p: {over:33.5, total:71.7,  over_rad:20, totl_rad:130},
+  e: {over:19.8, total:413.3, over_rad:40, totl_rad:210},
+  a: {over:17.9, total:86.1,  over_rad:20, totl_rad:200},
+}
+  
+const 
+		group = 'p',
+		a_count = parseInt(groups[group].over * 10),
+    b_count = parseInt(groups[group].total * 10),
+    a_radius = groups[group].over_rad,
+    b_radius = groups[group].totl_rad,
+    a_force = 3.8,
+    b_force = 5.0,
+    nodes = [].concat(
+      d3.range(a_count).map(function() { return {type: "a"}; }),
+      d3.range(b_count - a_count).map(function() { return {type: "b"}; })
+    )
+
+const svg   = d3.select("svg"),
+  		width = +svg.attr("width"),
+  		height= +svg.attr("height")
+
+var node = svg.append("g")
+  .selectAll("circle")
+  .data(nodes)
+  .enter().append("circle")
+    .attr("r", 2.5)
+    .attr("fill", function(d) { return d.type === "a" ? '#F24236' : '#5BC0EB'; })
+
+svg.selectAll(".bounds")
+    .data([100])//, 260])
+  .enter().append("circle")
+    .attr("cx", 0)
+    .attr("cy", 0)
+    .attr("r", (d) => d)
+    .attr("fill", 'none')
+		.attr("stroke", 'steelblue')
+
+var simulation = d3.forceSimulation(nodes)
+    .force("charge", d3.forceCollide().radius(function(d) { return d.type === "a" ? a_force : b_force; }))
+    .force("r", d3.forceRadial(function(d) { return d.type === "a" ? a_radius : b_radius; }))
+    .on("tick", ticked);
+
+function ticked() {
+  node
+      .attr("cx", function(d) { return d.x; })
+      .attr("cy", function(d) { return d.y; });
+}
+
+</script>
+</body>
